@@ -6,5 +6,11 @@
     "--query-driver=**",
     "--compile-commands-dir=/Users/anv./Development/ESP32 Workspace/Smart Helmet Full Hardware Code/Sound Processor ESP32-S3/build"
   ],
-  "idf.currentSetup": "/Users/anv./.espressif/v5.3.5/esp-idf"
+  "idf.currentSetup": "/Users/anv./.espressif/v5.3.5/esp-idf",
+  "idf.customExtraVars": {
+    "IDF_TARGET": "esp32s3"
+  },
+  "idf.openOcdConfigs": [
+    "board/esp32s3-builtin.cfg"
+  ]
 }

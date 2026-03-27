@@ -1,6 +1,11 @@
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include "i2s_rx.h"
 #include "driver/i2s_std.h"
 #include "esp_log.h"
+#include "tinyusb.h"
+#include "tusb.h"
 
 #define TAG "I2S_RX"
 
@@ -9,6 +14,19 @@ static i2s_chan_handle_t tx_handle;
 
 #define SAMPLE_RATE 44100
 #define BUFFER_SIZE 1024
+
+static void usb_audio_init(void)
+{
+    tinyusb_config_t tusb_cfg = {
+        .device_descriptor = NULL,
+        .string_descriptor = NULL,
+        .external_phy = false,
+    };
+
+    tinyusb_driver_install(&tusb_cfg);
+
+    ESP_LOGI(TAG, "TinyUSB initialized");
+}
 
 void i2s_rx_init(void)
 {
@@ -24,7 +42,7 @@ void i2s_rx_init(void)
             .bclk = 4,
             .ws   = 5,
             .dout = 18, // for speaker out
-            .din  = 19, // from ESP32
+            .din  = 6, // from ESP32
             .invert_flags = {
                 .mclk_inv = false,
                 .bclk_inv = false,
@@ -39,7 +57,8 @@ void i2s_rx_init(void)
     i2s_channel_enable(rx_handle);
     i2s_channel_enable(tx_handle);
 
-    ESP_LOGI(TAG, "I2S RX initialized");
+    usb_audio_init();
+    ESP_LOGI(TAG, "I2S RX + USB initialized");
 }
 
 static void i2s_rx_task(void *arg)
@@ -51,12 +70,28 @@ static void i2s_rx_task(void *arg)
     {
         i2s_channel_read(rx_handle, buffer, BUFFER_SIZE, &bytes_read, portMAX_DELAY);
 
-        // pass-through (can add DSP later)
+        // Send audio to USB (TinyUSB)
+        if (tud_ready())
+        {
+            tud_audio_write(buffer, bytes_read);
+        }
+
+        // pass-through (speaker output)
         i2s_channel_write(tx_handle, buffer, bytes_read, &bytes_written, portMAX_DELAY);
+    }
+}
+
+static void usb_task(void *arg)
+{
+    while (1)
+    {
+        tud_task(); // handle USB stack
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 
 void i2s_rx_task_start(void)
 {
     xTaskCreatePinnedToCore(i2s_rx_task, "i2s_rx_task", 4096, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(usb_task, "usb_task", 4096, NULL, 6, NULL, 1);
 }
