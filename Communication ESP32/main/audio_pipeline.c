@@ -2,7 +2,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
-#include "driver/i2s.h"
+#include "driver/i2s_std.h"
+
+extern i2s_chan_handle_t tx_handle;
 #include <stdlib.h>
 #include <string.h>
 
@@ -25,11 +27,11 @@ static void i2s_task(void *arg)
             while (written_total < pkt.len)
             {
                 size_t written = 0;
-                i2s_write(I2S_PORT,
-                          pkt.data + written_total,
-                          pkt.len - written_total,
-                          &written,
-                          10 / portTICK_PERIOD_MS);
+                i2s_channel_write(tx_handle,
+                                  pkt.data + written_total,
+                                  pkt.len - written_total,
+                                  &written,
+                                  10 / portTICK_PERIOD_MS);
 
                 written_total += written;
 
