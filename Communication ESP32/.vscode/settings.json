@@ -1,0 +1,10 @@
+{
+  "C_Cpp.intelliSenseEngine": "default",
+  "clangd.path": "/Users/anv./.espressif/tools/esp-clang/16.0.1-fe4f10a809/esp-clang/bin/clangd",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=/Users/anv./Development/ESP32 Workspace/Smart Helmet Full Hardware Code/Communication ESP32/build"
+  ],
+  "idf.currentSetup": "/Users/anv./.espressif/v5.3.5/esp-idf"
+}
