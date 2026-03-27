@@ -14,23 +14,23 @@
 #include "esp_hf_client_api.h"
 
 #include "driver/i2s.h"
+#include <string.h>
+#include <stdlib.h>
 
 #define TAG "A2DP_HFP"
 
 // I2S Pins
 #define I2S_BCK_IO 26
 #define I2S_WS_IO 25
-#define I2S_DO_IO 22
+#define I2S_DO_IO 33
 
 #define I2S_PORT I2S_NUM_0
 
 // ---------------- QUEUE-BASED AUDIO BUFFERING ----------------
 #include "freertos/queue.h"
 
-#define AUDIO_QUEUE_SIZE 8
+#define AUDIO_QUEUE_SIZE 4
 #define AUDIO_CHUNK_SIZE 512
-
-static QueueHandle_t audio_queue;
 
 typedef struct {
     uint8_t *data;
@@ -39,30 +39,34 @@ typedef struct {
 
 static QueueHandle_t audio_queue;
 
-static void i2s_task(void *arg)static void a2dp_data_cb(const uint8_t *data, uint32_t len)
+static void i2s_task(void *arg)
 {
     audio_packet_t pkt;
-
-    pkt.data = malloc(len);
-    if (!pkt.data) return;
-
-    memcpy(pkt.data, data, len);
-    pkt.len = len;
-
-    if (xQueueSend(audio_queue, &pkt, 0) != pdTRUE)
-    {
-        free(pkt.data);
-    }
-}
-{
-    audio_packet_t pkt;
-    size_t written;
+    size_t written_total;
 
     while (1)
     {
         if (xQueueReceive(audio_queue, &pkt, portMAX_DELAY))
         {
-            i2s_write(I2S_PORT, pkt.data, pkt.len, &written, portMAX_DELAY);
+            written_total = 0;
+
+            while (written_total < pkt.len)
+            {
+                size_t written = 0;
+                i2s_write(I2S_PORT,
+                          pkt.data + written_total,
+                          pkt.len - written_total,
+                          &written,
+                          0); // non-blocking
+
+                written_total += written;
+
+                if (written == 0)
+                {
+                    taskYIELD(); // avoid blocking BT stack
+                }
+            }
+
             free(pkt.data);
         }
     }
@@ -78,9 +82,9 @@ static void i2s_init()
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
         .communication_format = I2S_COMM_FORMAT_STAND_I2S,
         .intr_alloc_flags = 0,
-        .dma_buf_count = 6,
-        .dma_buf_len = 128,
-        .use_apll = false,
+        .dma_buf_count = 4,
+        .dma_buf_len = 48,
+        .use_apll = true,
         .tx_desc_auto_clear = true
     };
 
@@ -93,9 +97,21 @@ static void i2s_init()
 
     i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
     i2s_set_pin(I2S_PORT, &pin_config);
+
+    // Improve clock accuracy for SBC (reduces jitter)
+    i2s_set_clk(I2S_PORT, 44100, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_STEREO);
 }
 
 // ---------------- A2DP CALLBACK ----------------
+
+static void a2dp_event_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
+{
+    if (event == ESP_A2D_CONNECTION_STATE_EVT)
+    {
+        ESP_LOGI(TAG, "A2DP connection: %d", param->conn_stat.state);
+    }
+}
+
 static void a2dp_data_cb(const uint8_t *data, uint32_t len)
 {
     audio_packet_t pkt;
@@ -109,14 +125,6 @@ static void a2dp_data_cb(const uint8_t *data, uint32_t len)
     if (xQueueSend(audio_queue, &pkt, 0) != pdTRUE)
     {
         free(pkt.data);
-    }
-}
-
-static void a2dp_event_cb(esp_a2d_cb_event_t event, esp_a2d_cb_param_t *param)
-{
-    if (event == ESP_A2D_CONNECTION_STATE_EVT)
-    {
-        ESP_LOGI(TAG, "A2DP connection: %d", param->conn_stat.state);
     }
 }
 
@@ -186,7 +194,7 @@ void app_main(void)
     }
     audio_queue = xQueueCreate(AUDIO_QUEUE_SIZE, sizeof(audio_packet_t));
 
-    xTaskCreatePinnedToCore(i2s_task, "i2s_task", 4096, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(i2s_task, "i2s_task", 6144, NULL, 10, NULL, 0);
 
     i2s_init();
     bluetooth_init();
