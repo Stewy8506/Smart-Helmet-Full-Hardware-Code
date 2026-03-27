@@ -1,4 +1,5 @@
 #include "bt_audio.h"
+#include "i2s_audio.h"
 #include "audio_pipeline.h"
 #include "i2s_audio.h"
 #include "esp_bt.h"
@@ -22,7 +23,6 @@ static void a2dp_data_cb(const uint8_t *data, uint32_t len)
     {
         return;
     }
-
     audio_pipeline_send(data, len);
 }
 
