@@ -1,0 +1,95 @@
+-- Existing sdkconfig 'D:/shared/programming/Projects/IITM_Gwalior/RTOS/MOD_1/helmet_monitor/sdkconfig' renamed to 'D:/shared/programming/Projects/IITM_Gwalior/RTOS/MOD_1/helmet_monitor/sdkconfig.old'.
+-- Found Git: C:/Program Files/Git/cmd/git.exe (found version "2.50.0.windows.2") 
+-- Initialising new submodule components/bootloader/subproject/components/micro-ecc/micro-ecc...
+Submodule path 'components/bootloader/subproject/components/micro-ecc/micro-ecc': checked out '24c60e243580c7868f4334a1ba3123481fe1aa48'
+-- Initialising new submodule components/bt/controller/lib_esp32...
+Submodule path 'components/bt/controller/lib_esp32': checked out 'b0f132f17ed48553a4638344023d44af61b7c20a'
+-- Initialising new submodule components/bt/controller/lib_esp32c2/esp32c2-bt-lib...
+Submodule path 'components/bt/controller/lib_esp32c2/esp32c2-bt-lib': checked out '7f3eb5f5568439cdb32dfe9dbf69d99e9c72e69f'
+-- Initialising new submodule components/bt/controller/lib_esp32c3_family...
+Submodule path 'components/bt/controller/lib_esp32c3_family': checked out '393ac4c33b419226aac9d1e8f1b5d553b7f3bc97'
+-- Initialising new submodule components/bt/controller/lib_esp32c6/esp32c6-bt-lib...
+Submodule path 'components/bt/controller/lib_esp32c6/esp32c6-bt-lib': checked out 'e4d0d86b6f4fe4233f53e71d7dfa18faa0f19f27'
+-- Initialising new submodule components/bt/controller/lib_esp32h2/esp32h2-bt-lib...
+Submodule path 'components/bt/controller/lib_esp32h2/esp32h2-bt-lib': checked out '90793e83195547303e0fd190c890c8bff754d5d3'
+-- Initialising new submodule components/bt/esp_ble_mesh/lib/lib...
+Submodule path 'components/bt/esp_ble_mesh/lib/lib': checked out '41bf5fc0926fd6d3fb39cb5107e97f2fc6aed7e5'
+-- Initialising new submodule components/bt/host/nimble/nimble...
+Submodule path 'components/bt/host/nimble/nimble': checked out 'f29df73af65971479782db6f3dcf39d26ca278e5'
+-- Initialising new submodule components/cmock/CMock...
+Submodule path 'components/cmock/CMock': checked out 'eeecc49ce8af123cf8ad40efdb9673e37b56230f'
+Submodule path 'components/cmock/CMock/vendor/c_exception': checked out '71b47be7c950f1bf5f7e5303779fa99a16224bb6'
+Submodule path 'components/cmock/CMock/vendor/unity': checked out 'cf949f45ca6d172a177b00da21310607b97bc7a7'
+-- Initialising new submodule components/esp_coex/lib...
+Submodule path 'components/esp_coex/lib': checked out '496ee81e168881cad93f9a813802e7f7a6daec92'
+-- Initialising new submodule components/esp_phy/lib...
+Submodule path 'components/esp_phy/lib': checked out '798678e4e011c666a931292fc300ec02160cdc6a'
+-- Initialising new submodule components/esp_wifi/lib...
+Submodule path 'components/esp_wifi/lib': checked out '2dddee30b7aa2534cbd200f2fb8df7957e447a9c'
+-- Initialising new submodule components/heap/tlsf...
+Submodule path 'components/heap/tlsf': checked out 'd2e28f872472ffc6a704faae65ddee1f24e2dfba'
+-- Initialising new submodule components/ieee802154/lib...
+Submodule path 'components/ieee802154/lib': checked out '102b03c8095de8a337c293f79dce189be63186f3'
+-- Initialising new submodule components/json/cJSON...
+Submodule path 'components/json/cJSON': checked out '87d8f0961a01bf09bef98ff89bae9fdec42181ee'
+-- Initialising new submodule components/lwip/lwip...
+Submodule path 'components/lwip/lwip': checked out '542ba2997f6cc14fe9c3d781bf9b0d890cd70bb1'
+-- Initialising new submodule components/mbedtls/mbedtls...
+Submodule path 'components/mbedtls/mbedtls': checked out 'dd91f30058dfad68d80267cc82cd8472c4aa54b5'
+-- Initialising new submodule components/mqtt/esp-mqtt...
+Submodule path 'components/mqtt/esp-mqtt': checked out 'e6afdb4025fe018ae0add44e3c45249ea1974774'
+-- Initialising new submodule components/openthread/lib...
+Submodule path 'components/openthread/lib': checked out 'e0969fc15c1991d91446a0dc5e4625ed2c0bb014'
+-- Initialising new submodule components/openthread/openthread...
+Submodule path 'components/openthread/openthread': checked out '41ef80717f4b757440125932723cc8721ef42f7f'
+-- Initialising new submodule components/protobuf-c/protobuf-c...
+Submodule path 'components/protobuf-c/protobuf-c': checked out 'abc67a11c6db271bedbb9f58be85d6f4e2ea8389'
+-- Initialising new submodule components/spiffs/spiffs...
+Submodule path 'components/spiffs/spiffs': checked out '0dbb3f71c5f6fae3747a9d935372773762baf852'
+-- Initialising new submodule components/unity/unity...
+Submodule path 'components/unity/unity': checked out '7d2bf62b7e6afaf38153041a9d53c21aeeca9a25'
+-- ccache will be used for faster recompilation
+-- The C compiler identification is GNU 13.2.0
+-- The CXX compiler identification is GNU 13.2.0
+-- The ASM compiler identification is GNU
+-- Found assembler: D:/Installations/Espressif/tools/xtensa-esp-elf/esp-13.2.0_20230928/xtensa-esp-elf/bin/xtensa-esp32s3-elf-gcc.exe
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: D:/Installations/Espressif/tools/xtensa-esp-elf/esp-13.2.0_20230928/xtensa-esp-elf/bin/xtensa-esp32s3-elf-gcc.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: D:/Installations/Espressif/tools/xtensa-esp-elf/esp-13.2.0_20230928/xtensa-esp-elf/bin/xtensa-esp32s3-elf-g++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- git rev-parse returned 'fatal: not a git repository (or any of the parent directories): .git'
+-- Could not use 'git describe' to determine PROJECT_VER.
+-- Building ESP-IDF components for target esp32s3
+-- Project sdkconfig file D:/shared/programming/Projects/IITM_Gwalior/RTOS/MOD_1/helmet_monitor/sdkconfig
+-- Compiler supported targets: xtensa-esp-elf
+-- Looking for sys/types.h
+-- Looking for sys/types.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for stddef.h
+-- Looking for stddef.h - found
+-- Check size of time_t
+-- Check size of time_t - done
+-- Found Python3: D:/Installations/Espressif/python_env/idf5.2_py3.8_env/Scripts/python.exe (found version "3.8.2") found components: Interpreter 
+-- Performing Test C_COMPILER_SUPPORTS_WFORMAT_SIGNEDNESS
+-- Performing Test C_COMPILER_SUPPORTS_WFORMAT_SIGNEDNESS - Success
+-- App "helmet_monitor" version: 1
+-- Adding linker script D:/shared/programming/Projects/IITM_Gwalior/RTOS/MOD_1/helmet_monitor/build/esp-idf/esp_system/ld/memory.ld
+-- Adding linker script C:/esp/esp-idf-v5.2/components/esp_system/ld/esp32s3/sections.ld.in
+-- Adding linker script C:/esp/esp-idf-v5.2/components/esp_rom/esp32s3/ld/esp32s3.rom.ld
+-- Adding linker script C:/esp/esp-idf-v5.2/components/esp_rom/esp32s3/ld/esp32s3.rom.api.ld
+-- Adding linker script C:/esp/esp-idf-v5.2/components/esp_rom/esp32s3/ld/esp32s3.rom.libgcc.ld
+-- Adding linker script C:/esp/esp-idf-v5.2/components/esp_rom/esp32s3/ld/esp32s3.rom.newlib.ld
+-- Adding linker script C:/esp/esp-idf-v5.2/components/esp_rom/esp32s3/ld/esp32s3.rom.version.ld
+-- Adding linker script C:/esp/esp-idf-v5.2/components/soc/esp32s3/ld/esp32s3.peripherals.ld
+-- Components: app_trace app_update bootloader bootloader_support bt cmock console cxx driver efuse esp-tls esp_adc esp_app_format esp_bootloader_format esp_coex esp_common esp_eth esp_event esp_gdbstub esp_hid esp_http_client esp_http_server esp_https_ota esp_https_server esp_hw_support esp_lcd esp_local_ctrl esp_mm esp_netif esp_netif_stack esp_partition esp_phy esp_pm esp_psram esp_ringbuf esp_rom esp_system esp_timer esp_wifi espcoredump esptool_py fatfs freertos hal heap http_parser idf_test ieee802154 json log lwip main mbedtls mqtt newlib nvs_flash nvs_sec_provider openthread partition_table perfmon protobuf-c protocomm pthread sdmmc soc spi_flash spiffs tcp_transport touch_element ulp unity usb vfs wear_levelling wifi_provisioning wpa_supplicant xtensa
+-- Component paths: C:/esp/esp-idf-v5.2/components/app_trace C:/esp/esp-idf-v5.2/components/app_update C:/esp/esp-idf-v5.2/components/bootloader C:/esp/esp-idf-v5.2/components/bootloader_support C:/esp/esp-idf-v5.2/components/bt C:/esp/esp-idf-v5.2/components/cmock C:/esp/esp-idf-v5.2/components/console C:/esp/esp-idf-v5.2/components/cxx C:/esp/esp-idf-v5.2/components/driver C:/esp/esp-idf-v5.2/components/efuse C:/esp/esp-idf-v5.2/components/esp-tls C:/esp/esp-idf-v5.2/components/esp_adc C:/esp/esp-idf-v5.2/components/esp_app_format C:/esp/esp-idf-v5.2/components/esp_bootloader_format C:/esp/esp-idf-v5.2/components/esp_coex C:/esp/esp-idf-v5.2/components/esp_common C:/esp/esp-idf-v5.2/components/esp_eth C:/esp/esp-idf-v5.2/components/esp_event C:/esp/esp-idf-v5.2/components/esp_gdbstub C:/esp/esp-idf-v5.2/components/esp_hid C:/esp/esp-idf-v5.2/components/esp_http_client C:/esp/esp-idf-v5.2/components/esp_http_server C:/esp/esp-idf-v5.2/components/esp_https_ota C:/esp/esp-idf-v5.2/components/esp_https_server C:/esp/esp-idf-v5.2/components/esp_hw_support C:/esp/esp-idf-v5.2/components/esp_lcd C:/esp/esp-idf-v5.2/components/esp_local_ctrl C:/esp/esp-idf-v5.2/components/esp_mm C:/esp/esp-idf-v5.2/components/esp_netif C:/esp/esp-idf-v5.2/components/esp_netif_stack C:/esp/esp-idf-v5.2/components/esp_partition C:/esp/esp-idf-v5.2/components/esp_phy C:/esp/esp-idf-v5.2/components/esp_pm C:/esp/esp-idf-v5.2/components/esp_psram C:/esp/esp-idf-v5.2/components/esp_ringbuf C:/esp/esp-idf-v5.2/components/esp_rom C:/esp/esp-idf-v5.2/components/esp_system C:/esp/esp-idf-v5.2/components/esp_timer C:/esp/esp-idf-v5.2/components/esp_wifi C:/esp/esp-idf-v5.2/components/espcoredump C:/esp/esp-idf-v5.2/components/esptool_py C:/esp/esp-idf-v5.2/components/fatfs C:/esp/esp-idf-v5.2/components/freertos C:/esp/esp-idf-v5.2/components/hal C:/esp/esp-idf-v5.2/components/heap C:/esp/esp-idf-v5.2/components/http_parser C:/esp/esp-idf-v5.2/components/idf_test C:/esp/esp-idf-v5.2/components/ieee802154 C:/esp/esp-idf-v5.2/components/json C:/esp/esp-idf-v5.2/components/log C:/esp/esp-idf-v5.2/components/lwip D:/shared/programming/Projects/IITM_Gwalior/RTOS/MOD_1/helmet_monitor/main C:/esp/esp-idf-v5.2/components/mbedtls C:/esp/esp-idf-v5.2/components/mqtt C:/esp/esp-idf-v5.2/components/newlib C:/esp/esp-idf-v5.2/components/nvs_flash C:/esp/esp-idf-v5.2/components/nvs_sec_provider C:/esp/esp-idf-v5.2/components/openthread C:/esp/esp-idf-v5.2/components/partition_table C:/esp/esp-idf-v5.2/components/perfmon C:/esp/esp-idf-v5.2/components/protobuf-c C:/esp/esp-idf-v5.2/components/protocomm C:/esp/esp-idf-v5.2/components/pthread C:/esp/esp-idf-v5.2/components/sdmmc C:/esp/esp-idf-v5.2/components/soc C:/esp/esp-idf-v5.2/components/spi_flash C:/esp/esp-idf-v5.2/components/spiffs C:/esp/esp-idf-v5.2/components/tcp_transport C:/esp/esp-idf-v5.2/components/touch_element C:/esp/esp-idf-v5.2/components/ulp C:/esp/esp-idf-v5.2/components/unity C:/esp/esp-idf-v5.2/components/usb C:/esp/esp-idf-v5.2/components/vfs C:/esp/esp-idf-v5.2/components/wear_levelling C:/esp/esp-idf-v5.2/components/wifi_provisioning C:/esp/esp-idf-v5.2/components/wpa_supplicant C:/esp/esp-idf-v5.2/components/xtensa
+-- Configuring done
+-- Generating done
+-- Build files have been written to: D:/shared/programming/Projects/IITM_Gwalior/RTOS/MOD_1/helmet_monitor/build
