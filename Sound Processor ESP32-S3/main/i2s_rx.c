@@ -13,8 +13,7 @@ static i2s_chan_handle_t rx_handle;
 static i2s_chan_handle_t tx_handle;
 
 #define SAMPLE_RATE 44100
-#define BUFFER_SIZE 1024
-
+#define BUFFER_SIZE 102
 static void usb_audio_init(void)
 {
     tinyusb_config_t tusb_cfg = {
