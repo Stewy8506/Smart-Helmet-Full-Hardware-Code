@@ -4,93 +4,92 @@
 #include "i2s_rx.h"
 #include "driver/i2s_std.h"
 #include "esp_log.h"
-#include "tinyusb.h"
-#include "tusb.h"
 
 #define TAG "I2S_RX"
 
 static i2s_chan_handle_t rx_handle;
 static i2s_chan_handle_t tx_handle;
 
-#define SAMPLE_RATE 44100
-#define BUFFER_SIZE 102
-static void usb_audio_init(void)
+#define SAMPLE_RATE 44100  // Must match transmitter exactly
+#define BUFFER_SIZE 1024
+
+
+static uint8_t buffer[BUFFER_SIZE];
+
+static void i2s_rx_task(void *arg)
 {
-    tinyusb_config_t tusb_cfg = {
-        .device_descriptor = NULL,
-        .string_descriptor = NULL,
-        .external_phy = false,
-    };
+    size_t bytes_read = 0;
+    size_t bytes_written = 0;
 
-    tinyusb_driver_install(&tusb_cfg);
+    while (1)
+    {
+        // Read from ESP32
+        i2s_channel_read(rx_handle, buffer, BUFFER_SIZE, &bytes_read, portMAX_DELAY);
 
-    ESP_LOGI(TAG, "TinyUSB initialized");
+        if (bytes_read > 0)
+        {
+            // Pass through stereo data directly (TX and RX formats now match)
+            i2s_channel_write(tx_handle, buffer, bytes_read, &bytes_written, portMAX_DELAY);
+        }
+    }
 }
 
 void i2s_rx_init(void)
 {
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_SLAVE);
+    // RX uses controller 0 as SLAVE (clock from ESP32)
+    i2s_chan_config_t rx_chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_SLAVE);
 
-    i2s_new_channel(&chan_cfg, &tx_handle, &rx_handle);
+    // TX must be MASTER on a separate controller (to drive speaker clocks)
+    i2s_chan_config_t tx_chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_MASTER);
 
-    i2s_std_config_t std_cfg = {
+    // Create RX (slave) and TX (master) on different controllers
+    i2s_new_channel(&rx_chan_cfg, NULL, &rx_handle);
+    i2s_new_channel(&tx_chan_cfg, &tx_handle, NULL);
+
+    // RX (ESP32 → S3)
+    i2s_std_config_t rx_cfg = {
+        // Slave ignores its own clock; must just match expected format
         .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
+        // Must match transmitter: 16-bit stereo MSB
         .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
             .bclk = 4,
             .ws   = 5,
-            .dout = 18, // for speaker out
-            .din  = 6, // from ESP32
-            .invert_flags = {
-                .mclk_inv = false,
-                .bclk_inv = false,
-                .ws_inv   = false,
-            },
+            .dout = I2S_GPIO_UNUSED,
+            .din  = 6,
         },
     };
 
-    i2s_channel_init_std_mode(rx_handle, &std_cfg);
-    i2s_channel_init_std_mode(tx_handle, &std_cfg);
+    // TX (S3 → speakers)
+    i2s_std_config_t tx_cfg = {
+        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
+        // TX must match RX timing (MSB standard)
+        // Keep TX stereo (for headphones), we will duplicate mono → stereo
+
+        // TX needs its own clock pins (DO NOT reuse RX clock pins)
+        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        .gpio_cfg = {
+            .mclk = I2S_GPIO_UNUSED,
+            // Using pins 15 (BCLK) and 16 (WS) instead
+            .bclk = 15,
+            .ws   = 16,
+            // These pins must connect to your DAC / amplifier, not the ESP32 TX
+            .dout = 36,
+            .din  = I2S_GPIO_UNUSED,
+        },
+    };
+
+    i2s_channel_init_std_mode(rx_handle, &rx_cfg);
+    i2s_channel_init_std_mode(tx_handle, &tx_cfg);
 
     i2s_channel_enable(rx_handle);
     i2s_channel_enable(tx_handle);
 
-    usb_audio_init();
-    ESP_LOGI(TAG, "I2S RX + USB initialized");
-}
-
-static void i2s_rx_task(void *arg)
-{
-    uint8_t buffer[BUFFER_SIZE];
-    size_t bytes_read, bytes_written;
-
-    while (1)
-    {
-        i2s_channel_read(rx_handle, buffer, BUFFER_SIZE, &bytes_read, portMAX_DELAY);
-
-        // Send audio to USB (TinyUSB)
-        if (tud_ready())
-        {
-            tud_audio_write(buffer, bytes_read);
-        }
-
-        // pass-through (speaker output)
-        i2s_channel_write(tx_handle, buffer, bytes_read, &bytes_written, portMAX_DELAY);
-    }
-}
-
-static void usb_task(void *arg)
-{
-    while (1)
-    {
-        tud_task(); // handle USB stack
-        vTaskDelay(pdMS_TO_TICKS(1));
-    }
+    xTaskCreatePinnedToCore(i2s_rx_task, "i2s_rx_task", 4096, NULL, 5, NULL, 0);
 }
 
 void i2s_rx_task_start(void)
 {
-    xTaskCreatePinnedToCore(i2s_rx_task, "i2s_rx_task", 4096, NULL, 5, NULL, 0);
-    xTaskCreatePinnedToCore(usb_task, "usb_task", 4096, NULL, 6, NULL, 1);
+    i2s_rx_init();
 }

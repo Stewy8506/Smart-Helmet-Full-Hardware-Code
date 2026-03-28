@@ -1,5 +1,6 @@
 #include "i2s_audio.h"
 #include "driver/i2s_std.h"
+#include "esp_log.h"
 
 #define I2S_BCK_IO 26
 #define I2S_WS_IO 25
@@ -17,7 +18,9 @@ void i2s_audio_init(void)
 
     // Standard I2S configuration
     i2s_std_config_t std_cfg = {
-        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(44100),
+        // Use current sample rate (can be updated dynamically from Bluetooth)
+        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(current_sample_rate),
+        // Must match transmitter: 16-bit stereo MSB
         .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
@@ -42,6 +45,8 @@ void i2s_set_sample_rate(uint32_t rate)
 {
     if (rate == current_sample_rate)
         return;
+
+    ESP_LOGI("I2S_AUDIO", "Updating sample rate to %lu", rate);
 
     // Disable channel before reconfiguring
     i2s_channel_disable(tx_handle);
