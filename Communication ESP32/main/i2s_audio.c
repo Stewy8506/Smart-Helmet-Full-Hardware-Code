@@ -21,7 +21,15 @@ void i2s_audio_init(void)
         // Use current sample rate (can be updated dynamically from Bluetooth)
         .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(current_sample_rate),
         // Must match transmitter: 16-bit stereo MSB
-        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        .slot_cfg = {
+            .data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
+            .slot_bit_width = I2S_SLOT_BIT_WIDTH_16BIT,
+            .slot_mode = I2S_SLOT_MODE_STEREO,
+            .slot_mask = I2S_STD_SLOT_BOTH,
+            .ws_width = 16,
+            .ws_pol = false,
+            .bit_shift = true,
+        },
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
             .bclk = I2S_BCK_IO,

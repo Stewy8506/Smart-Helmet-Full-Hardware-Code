@@ -36,6 +36,7 @@ static void i2s_rx_task(void *arg)
 
 void i2s_rx_init(void)
 {
+
     // RX uses controller 0 as SLAVE (clock from ESP32)
     i2s_chan_config_t rx_chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_SLAVE);
 
@@ -43,15 +44,23 @@ void i2s_rx_init(void)
     i2s_chan_config_t tx_chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_MASTER);
 
     // Create RX (slave) and TX (master) on different controllers
-    i2s_new_channel(&rx_chan_cfg, NULL, &rx_handle);
-    i2s_new_channel(&tx_chan_cfg, &tx_handle, NULL);
+    ESP_ERROR_CHECK(i2s_new_channel(&rx_chan_cfg, NULL, &rx_handle));
+    ESP_ERROR_CHECK(i2s_new_channel(&tx_chan_cfg, &tx_handle, NULL));
 
     // RX (ESP32 → S3)
     i2s_std_config_t rx_cfg = {
         // Slave ignores its own clock; must just match expected format
         .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
-        // Must match transmitter: 16-bit stereo MSB
-        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        // Must match transmitter: 16-bit stereo PHILIPS
+        .slot_cfg = {
+            .data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
+            .slot_bit_width = I2S_SLOT_BIT_WIDTH_16BIT,
+            .slot_mode = I2S_SLOT_MODE_STEREO,
+            .slot_mask = I2S_STD_SLOT_BOTH,
+            .ws_width = 16,
+            .ws_pol = false,
+            .bit_shift = true,
+        },
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
             .bclk = 4,
@@ -64,11 +73,19 @@ void i2s_rx_init(void)
     // TX (S3 → speakers)
     i2s_std_config_t tx_cfg = {
         .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
-        // TX must match RX timing (MSB standard)
+        // TX must match RX timing (PHILIPS standard)
         // Keep TX stereo (for headphones), we will duplicate mono → stereo
 
         // TX needs its own clock pins (DO NOT reuse RX clock pins)
-        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        .slot_cfg = {
+            .data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
+            .slot_bit_width = I2S_SLOT_BIT_WIDTH_16BIT,
+            .slot_mode = I2S_SLOT_MODE_STEREO,
+            .slot_mask = I2S_STD_SLOT_BOTH,
+            .ws_width = 16,
+            .ws_pol = false,
+            .bit_shift = true,
+        },
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
             // Using pins 15 (BCLK) and 16 (WS) instead
@@ -80,11 +97,11 @@ void i2s_rx_init(void)
         },
     };
 
-    i2s_channel_init_std_mode(rx_handle, &rx_cfg);
-    i2s_channel_init_std_mode(tx_handle, &tx_cfg);
+    ESP_ERROR_CHECK(i2s_channel_init_std_mode(rx_handle, &rx_cfg));
+    ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_handle, &tx_cfg));
 
-    i2s_channel_enable(rx_handle);
-    i2s_channel_enable(tx_handle);
+    ESP_ERROR_CHECK(i2s_channel_enable(rx_handle));
+    ESP_ERROR_CHECK(i2s_channel_enable(tx_handle));
 
     xTaskCreatePinnedToCore(i2s_rx_task, "i2s_rx_task", 4096, NULL, 5, NULL, 0);
 }

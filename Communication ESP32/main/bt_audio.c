@@ -11,18 +11,21 @@
 #include "esp_log.h"
 #include "esp_hf_client_api.h"
 
-
 #define TAG "BT_AUDIO"
 
 static bool hfp_audio_active = false;
 
+static uint32_t total_bytes = 0;
+
 static void a2dp_data_cb(const uint8_t *data, uint32_t len)
 {
-    // If call audio is active, ignore A2DP (pause music)
-    if (hfp_audio_active)
-    {
-        return;
-    }
+    total_bytes += len;
+
+    // Simple signal check (detect silence vs audio)
+    int16_t sample = (int16_t)(data[0] | (data[1] << 8));
+
+    ESP_LOGI("AUDIO", "Bytes: %lu | Sample: %d", total_bytes, sample);
+
     audio_pipeline_send(data, len);
 }
 
@@ -86,48 +89,59 @@ static void hfp_event_cb(esp_hf_client_cb_event_t event, esp_hf_client_cb_param_
 
     switch (event)
     {
-        case ESP_HF_CLIENT_CONNECTION_STATE_EVT:
-            ESP_LOGI(TAG, "HFP connection state: %d", param->conn_stat.state);
-            break;
+    case ESP_HF_CLIENT_CONNECTION_STATE_EVT:
+        ESP_LOGI(TAG, "HFP connection state: %d", param->conn_stat.state);
+        break;
 
-        case ESP_HF_CLIENT_AUDIO_STATE_EVT:
-            ESP_LOGI(TAG, "HFP audio state: %d", param->audio_stat.state);
+    case ESP_HF_CLIENT_AUDIO_STATE_EVT:
+        ESP_LOGI(TAG, "HFP audio state: %d", param->audio_stat.state);
 
-            if (param->audio_stat.state == ESP_HF_CLIENT_AUDIO_STATE_CONNECTED)
-            {
-                hfp_audio_active = true;
-                i2s_set_sample_rate(16000);   // switch to call mode
-                ESP_LOGI(TAG, "Call audio ACTIVE");
-            }
-            else
-            {
-                hfp_audio_active = false;
-                i2s_set_sample_rate(44100);   // back to music
-                ESP_LOGI(TAG, "Call audio STOPPED");
-            }
-            break;
+        if (param->audio_stat.state == ESP_HF_CLIENT_AUDIO_STATE_CONNECTED)
+        {
+            hfp_audio_active = true;
+            i2s_set_sample_rate(16000); // switch to call mode
+            ESP_LOGI(TAG, "Call audio ACTIVE");
+        }
+        else
+        {
+            hfp_audio_active = false;
+            i2s_set_sample_rate(44100); // back to music
+            ESP_LOGI(TAG, "Call audio STOPPED");
+        }
+        break;
 
-        case ESP_HF_CLIENT_RING_IND_EVT:
-            ESP_LOGI(TAG, "Incoming call...");
-            break;
+    case ESP_HF_CLIENT_RING_IND_EVT:
+        ESP_LOGI(TAG, "Incoming call...");
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
+}
+
+static void bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
+{
+    ESP_LOGI(TAG, "GAP event: %d", event);
 }
 
 void bt_audio_init(void)
 {
+    // Initialize BT controller (MISSING - CRITICAL)
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-
     esp_bt_controller_init(&bt_cfg);
     esp_bt_controller_enable(ESP_BT_MODE_BTDM);
 
     esp_bluedroid_init();
     esp_bluedroid_enable();
+    ESP_LOGI(TAG, "Bluedroid enabled");
 
+    // GAP first
+    esp_bt_gap_register_callback(bt_gap_cb);
+    
     esp_bt_gap_set_device_name("Nexus Smart Helmet");
+    ESP_LOGI(TAG, "Device name set");
 
+    // Profiles
     esp_a2d_register_callback(a2dp_event_cb);
     esp_a2d_sink_register_data_callback(a2dp_data_cb);
     esp_a2d_sink_init();
@@ -136,5 +150,7 @@ void bt_audio_init(void)
     esp_hf_client_init();
     esp_hf_client_register_data_callback(hfp_audio_data_cb, NULL);
 
+    // THEN make discoverable
     esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
+    ESP_LOGI(TAG, "Bluetooth ready and discoverable");
 }
