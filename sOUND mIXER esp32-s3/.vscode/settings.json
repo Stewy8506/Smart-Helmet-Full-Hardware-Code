@@ -1,4 +1,12 @@
 {
   "C_Cpp.intelliSenseEngine": "default",
-  "idf.currentSetup": "/Users/anv./.espressif/v5.3.5/esp-idf"
+  "idf.currentSetup": "/Users/anv./.espressif/v5.3.5/esp-idf",
+  "idf.flashType": "JTAG",
+  "idf.openOcdConfigs": [
+    "board/esp32s3-builtin.cfg"
+  ],
+  "idf.customExtraVars": {
+    "IDF_TARGET": "esp32s3"
+  },
+  "idf.port": "/dev/tty.usbmodem1101"
 }
