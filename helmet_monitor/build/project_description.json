@@ -805,7 +805,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "D:/shared/programming/Projects/IITM_Gwalior/RTOS/MOD_1/helmet_monitor/build/esp-idf/main/libmain.a",
-            "sources": [ "D:/shared/programming/Projects/IITM_Gwalior/RTOS/MOD_1/helmet_monitor/main/helmet_monitor.c" ],
+            "sources": [ "D:/shared/programming/Projects/IITM_Gwalior/RTOS/MOD_1/helmet_monitor/main/helmet_monitor.c", "D:/shared/programming/Projects/IITM_Gwalior/RTOS/MOD_1/helmet_monitor/main/espnow_comm.c" ],
             "include_dirs": [ "." ]
         },
         "mbedtls": {

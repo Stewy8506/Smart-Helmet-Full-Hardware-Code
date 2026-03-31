@@ -4,6 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/i2c.h"
+#include "espnow_comm.h"
 
 ////////////////////////////////////////////////////////////
 // I2C CONFIG
@@ -399,7 +400,12 @@ void supervisor_task(void *arg)
         {
             printf("\n🚨🚨 FALL CONFIRMED 🚨🚨\n");
 
-            fall_confirmed_flag=1;
+            fall_confirmed_flag = 1;
+
+            espnow_send_fall_packet(true,
+                        0.95,
+                        0,
+                        0);
 
             shock_flag=0;
             altitude_flag=0;
@@ -451,7 +457,7 @@ void pulse_task(void *arg)
 void app_main()
 {
     printf("\nHelmet Monitoring Engine Started\n");
-
+    espnow_init();
     i2c_init();
 
     xTaskCreate(imu_task,"imu",4096,NULL,4,NULL);
