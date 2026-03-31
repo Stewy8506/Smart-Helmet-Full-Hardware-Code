@@ -4,6 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "i2s_out.h"
+#include <string.h>
 
 static const char *TAG = "MAIN";
 
@@ -17,45 +18,36 @@ void app_main(void)
 
     int16_t samples[512];
 
+    #define FRAME_SAMPLES 256
+
     while (1)
     {
-        int count = audio_buffer_read(samples, 512);
+        int count = audio_buffer_read(samples, FRAME_SAMPLES);
 
-        if (count > 0)
+        // Ensure fixed frame size
+        if (count < FRAME_SAMPLES)
+        {
+            memset(samples + count, 0, (FRAME_SAMPLES - count) * sizeof(int16_t));
+            count = FRAME_SAMPLES;
+        }
+
+        // Debug (reduced overhead)
+        static int counter = 0;
+        if (++counter % 50 == 0)
         {
             int min = 32767;
             int max = -32768;
 
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < FRAME_SAMPLES; i++)
             {
-                if (samples[i] < min)
-                    min = samples[i];
-                if (samples[i] > max)
-                    max = samples[i];
+                if (samples[i] < min) min = samples[i];
+                if (samples[i] > max) max = samples[i];
             }
 
-            static int counter = 0;
-
-            if (++counter % 20 == 0)
-            {
-                printf("RX Min: %d Max: %d\n", min, max);
-            }
-
-            if (counter % 20 == 0)
-            {
-                for (int i = 0; i < 6 && i < count; i++)
-                {
-                    printf("%d ", samples[i]);
-                }
-
-                printf("\nRX Min: %d Max: %d\n", min, max);
-            }
+            printf("RX Min: %d Max: %d\n", min, max);
         }
 
-        // Send audio to I2S output
-        i2s_out_write(samples, count);
-
-        // ALWAYS yield (critical for watchdog)
-        vTaskDelay(pdMS_TO_TICKS(5));
+        // Always send fixed-size audio
+        i2s_out_write(samples, FRAME_SAMPLES);
     }
 }

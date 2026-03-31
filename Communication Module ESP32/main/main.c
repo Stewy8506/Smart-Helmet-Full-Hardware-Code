@@ -5,7 +5,6 @@
 
 #include "bt_audio.h"
 #include "uart_stream.h"
-#include "resampler.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -39,7 +38,7 @@ static void audio_pipeline_callback(const uint8_t *data, uint32_t len)
     memcpy(pkt->data, data, len);
 
     // Non-blocking send
-    if (xQueueSend(audio_queue, &pkt, 0) != pdTRUE)
+    if (xQueueSend(audio_queue, &pkt, pdMS_TO_TICKS(10)) != pdTRUE)
     {
         free(pkt); // free if queue full
     }
@@ -66,14 +65,44 @@ static void audio_task(void *arg)
                 mono_buffer[i] = pcm[i * 2]; // take L channel
             }
 
-            // TEMP DEBUG: bypass resampler to verify audio path
-            int out_samples = resample_44k_to_16k(
-                mono_buffer,
-                frames,
-                out_buffer);
+            // Send RAW 44.1kHz mono with carry buffer (no sample loss)
+            #define FRAME_SAMPLES 256
 
+            static int16_t carry_buffer[FRAME_SAMPLES];
+            static int carry_count = 0;
 
-            uart_stream_send(out_buffer, out_samples);
+            int i = 0;
+
+            // Fill carry buffer first if needed
+            if (carry_count > 0)
+            {
+                int needed = FRAME_SAMPLES - carry_count;
+                int to_copy = (frames < needed) ? frames : needed;
+
+                memcpy(&carry_buffer[carry_count], mono_buffer, to_copy * sizeof(int16_t));
+                carry_count += to_copy;
+                i += to_copy;
+
+                if (carry_count == FRAME_SAMPLES)
+                {
+                    uart_stream_send(carry_buffer, FRAME_SAMPLES);
+                    carry_count = 0;
+                }
+            }
+
+            // Send full frames directly
+            while (i + FRAME_SAMPLES <= frames)
+            {
+                uart_stream_send(&mono_buffer[i], FRAME_SAMPLES);
+                i += FRAME_SAMPLES;
+            }
+
+            // Store leftovers for next iteration
+            if (i < frames)
+            {
+                carry_count = frames - i;
+                memcpy(carry_buffer, &mono_buffer[i], carry_count * sizeof(int16_t));
+            }
             free(pkt);
         }
     }
@@ -95,12 +124,9 @@ void app_main(void)
     ESP_LOGI(TAG, "Initializing UART...");
     uart_stream_init();
 
-    // 🔧 Resampler init (if needed)
-    ESP_LOGI(TAG, "Initializing resampler...");
-    resampler_init();
 
     // 🔧 Create audio queue + task
-    audio_queue = xQueueCreate(10, sizeof(audio_packet_t *));
+    audio_queue = xQueueCreate(20, sizeof(audio_packet_t *));
     xTaskCreate(audio_task, "audio_task", 8192, NULL, 5, NULL);
 
     // 🔧 Bluetooth A2DP init

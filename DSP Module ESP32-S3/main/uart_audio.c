@@ -10,7 +10,7 @@
 #define RX_PIN 15 // RX pin (ESP32-S3 GPIO15)
 #define TX_PIN 16 // not used
 
-#define BUF_SIZE 2048
+#define BUF_SIZE 4096
 
 static const char *TAG = "UART_AUDIO";
 
@@ -80,26 +80,6 @@ static void uart_rx_task(void *arg)
                 if (out_idx > 0)
                 {
                     audio_buffer_write(pcm, out_idx);
-
-                    static int counter = 0;
-
-                    if (++counter % 50 == 0)
-                    {
-                        printf("RX %d samples: ", out_idx);
-                        for (int i = 0; i < 6 && i < out_idx; i++)
-                        {
-                            printf("%d ", pcm[i]);
-                        }
-                        printf("\n");
-
-                        int16_t min = 32767, max = -32768;
-                        for (int i = 0; i < out_idx; i++)
-                        {
-                            if (pcm[i] < min) min = pcm[i];
-                            if (pcm[i] > max) max = pcm[i];
-                        }
-                        printf("RX Min: %d Max: %d\n", min, max);
-                    }
                 }
 
                 offset += 4 + length;
@@ -112,16 +92,13 @@ static void uart_rx_task(void *arg)
                 packet_index -= offset;
             }
         }
-
-        // Always yield a little to prevent watchdog (even when data is flowing)
-        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 
 void uart_audio_init(void)
 {
     uart_config_t config = {
-        .baud_rate = 1500000,
+        .baud_rate = 2000000,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
