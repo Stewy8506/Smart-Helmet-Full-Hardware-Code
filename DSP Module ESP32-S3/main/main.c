@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "i2s_out.h"
 
 static const char *TAG = "MAIN";
 
@@ -12,6 +13,7 @@ void app_main(void)
 
     audio_buffer_init();
     uart_audio_init();
+    i2s_out_init();
 
     int16_t samples[512];
 
@@ -49,6 +51,9 @@ void app_main(void)
                 printf("\nRX Min: %d Max: %d\n", min, max);
             }
         }
+
+        // Send audio to I2S output
+        i2s_out_write(samples, count);
 
         // ALWAYS yield (critical for watchdog)
         vTaskDelay(pdMS_TO_TICKS(5));
