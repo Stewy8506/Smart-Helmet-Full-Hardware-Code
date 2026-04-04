@@ -1,10 +1,21 @@
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/i2c.h"
-#include "espnow_comm.h"
+#include "driver/uart.h"
+
+////////////////////////////////////////////////////////////
+// UART CONFIG
+////////////////////////////////////////////////////////////
+
+#define UART_PORT UART_NUM_1
+#define UART_TX 17
+#define UART_RX 16
+#define UART_BAUD_RATE 115200
 
 ////////////////////////////////////////////////////////////
 // I2C CONFIG
@@ -19,29 +30,22 @@
 // SENSOR ADDRESSES
 ////////////////////////////////////////////////////////////
 
-#define LSM6DSO_ADDR 0x6B
-#define MS5611_ADDR  0x77
-#define MAX30102_ADDR 0x57
+#define LSM6DSO_ADDR    0x6B
+#define MS5611_ADDR     0x77
+#define MAX30102_ADDR   0x57
+#define TMP117_ADDR     0x48
 
 ////////////////////////////////////////////////////////////
-// LSM6DSO REGISTERS
+// REGISTERS
 ////////////////////////////////////////////////////////////
 
-#define CTRL1_XL 0x10
-#define OUTX_L_A 0x28
+#define CTRL1_XL        0x10
+#define OUTX_L_A        0x28
 
-////////////////////////////////////////////////////////////
-// MS5611 COMMANDS
-////////////////////////////////////////////////////////////
-
-#define RESET_CMD 0x1E
-#define ADC_READ  0x00
-#define D1_CONV   0x48
-#define D2_CONV   0x58
-
-////////////////////////////////////////////////////////////
-// MAX30102 REGISTERS
-////////////////////////////////////////////////////////////
+#define RESET_CMD       0x1E
+#define ADC_READ        0x00
+#define D1_CONV         0x48
+#define D2_CONV         0x58
 
 #define REG_FIFO_DATA   0x07
 #define REG_FIFO_CONFIG 0x08
@@ -50,8 +54,21 @@
 #define REG_LED1_PA     0x0C
 #define REG_LED2_PA     0x0D
 
+#define TMP117_TEMP_REG     0x00
+#define TMP117_CONFIG_REG   0x01
+
 ////////////////////////////////////////////////////////////
-// GLOBAL FLAGS
+// VALIDATION LIMITS
+////////////////////////////////////////////////////////////
+
+#define BPM_MIN_VALID 75
+#define BPM_MAX_VALID 130
+#define TEMP_MIN_VALID 35.0
+#define TEMP_MAX_VALID 38.0
+#define IR_THRESHOLD 70000
+
+////////////////////////////////////////////////////////////
+// FLAGS
 ////////////////////////////////////////////////////////////
 
 volatile int shock_flag = 0;
@@ -59,11 +76,50 @@ volatile int altitude_flag = 0;
 volatile int stillness_flag = 0;
 volatile int fall_confirmed_flag = 0;
 
+uint16_t C[7];
+
 ////////////////////////////////////////////////////////////
-// MS5611 CALIBRATION STORAGE
+// UART INIT
 ////////////////////////////////////////////////////////////
 
-uint16_t C[7];
+void uart_init()
+{
+    uart_config_t uart_config =
+    {
+        .baud_rate = UART_BAUD_RATE,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+    };
+
+    uart_driver_install(UART_PORT, 1024, 0, 0, NULL, 0);
+    uart_param_config(UART_PORT, &uart_config);
+    uart_set_pin(UART_PORT, UART_TX, UART_RX,
+                 UART_PIN_NO_CHANGE,
+                 UART_PIN_NO_CHANGE);
+
+    printf("[UART] Initialized\n");
+}
+
+////////////////////////////////////////////////////////////
+// UART SEND PACKET
+////////////////////////////////////////////////////////////
+
+void send_uart_packet(int fall, int bpm, float temp)
+{
+    char buffer[64];
+
+    sprintf(buffer,
+            "FALL:%d BPM:%d TEMP:%d\n",
+            fall,
+            bpm,
+            (int)temp);
+
+    uart_write_bytes(UART_PORT, buffer, strlen(buffer));
+
+    printf("[UART SENT] %s", buffer);
+}
 
 ////////////////////////////////////////////////////////////
 // I2C INIT
@@ -89,15 +145,15 @@ void i2c_init()
 // I2C HELPERS
 ////////////////////////////////////////////////////////////
 
-void write_reg(uint8_t addr,uint8_t reg,uint8_t val)
+void write_reg(uint8_t addr, uint8_t reg, uint8_t val)
 {
-    uint8_t data[2]={reg,val};
-    i2c_master_write_to_device(I2C_PORT,addr,data,2,100);
+    uint8_t data[2] = {reg, val};
+    i2c_master_write_to_device(I2C_PORT, addr, data, 2, 100);
 }
 
-void read_bytes(uint8_t addr,uint8_t reg,uint8_t *data,int len)
+void read_bytes(uint8_t addr, uint8_t reg, uint8_t *data, int len)
 {
-    i2c_master_write_read_device(I2C_PORT,addr,&reg,1,data,len,100);
+    i2c_master_write_read_device(I2C_PORT, addr, &reg, 1, data, len, 100);
 }
 
 ////////////////////////////////////////////////////////////
@@ -106,65 +162,8 @@ void read_bytes(uint8_t addr,uint8_t reg,uint8_t *data,int len)
 
 void imu_init()
 {
-    uint8_t config[2]={CTRL1_XL,0x48};
-
-    i2c_master_write_to_device(
-    I2C_PORT,
-    LSM6DSO_ADDR,
-    config,
-    2,
-    100);
-}
-
-////////////////////////////////////////////////////////////
-// MS5611 INIT
-////////////////////////////////////////////////////////////
-
-void ms5611_init()
-{
-    uint8_t cmd=RESET_CMD;
-
-    i2c_master_write_to_device(
-    I2C_PORT,
-    MS5611_ADDR,
-    &cmd,
-    1,
-    100);
-
-    vTaskDelay(pdMS_TO_TICKS(20));
-
-    for(int i=0;i<6;i++)
-    {
-        uint8_t reg=0xA2+(i*2);
-        uint8_t data[2];
-
-        read_bytes(
-        MS5611_ADDR,
-        reg,
-        data,
-        2);
-
-        C[i+1]=(data[0]<<8)|data[1];
-    }
-}
-
-////////////////////////////////////////////////////////////
-// READ MS5611 ADC
-////////////////////////////////////////////////////////////
-
-uint32_t read_adc()
-{
-    uint8_t data[3];
-
-    read_bytes(
-    MS5611_ADDR,
-    ADC_READ,
-    data,
-    3);
-
-    return (data[0]<<16)|
-           (data[1]<<8)|
-            data[2];
+    uint8_t config[2] = {CTRL1_XL, 0x48};
+    i2c_master_write_to_device(I2C_PORT, LSM6DSO_ADDR, config, 2, 100);
 }
 
 ////////////////////////////////////////////////////////////
@@ -173,33 +172,14 @@ uint32_t read_adc()
 
 void max30102_init()
 {
-    printf("[PULSE] Initializing sensor...\n");
-
-    write_reg(MAX30102_ADDR,
-              REG_MODE_CONFIG,
-              0x40);
-
+    write_reg(MAX30102_ADDR, REG_MODE_CONFIG, 0x40);
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    write_reg(MAX30102_ADDR,
-              REG_FIFO_CONFIG,
-              0x0F);
-
-    write_reg(MAX30102_ADDR,
-              REG_SPO2_CONFIG,
-              0x27);
-
-    write_reg(MAX30102_ADDR,
-              REG_LED1_PA,
-              0x24);
-
-    write_reg(MAX30102_ADDR,
-              REG_LED2_PA,
-              0x24);
-
-    write_reg(MAX30102_ADDR,
-              REG_MODE_CONFIG,
-              0x03);
+    write_reg(MAX30102_ADDR, REG_FIFO_CONFIG, 0x0F);
+    write_reg(MAX30102_ADDR, REG_SPO2_CONFIG, 0x27);
+    write_reg(MAX30102_ADDR, REG_LED1_PA, 0x24);
+    write_reg(MAX30102_ADDR, REG_LED2_PA, 0x24);
+    write_reg(MAX30102_ADDR, REG_MODE_CONFIG, 0x03);
 
     printf("[PULSE] Ready\n");
 }
@@ -211,37 +191,80 @@ void max30102_init()
 uint32_t read_ir_sample()
 {
     uint8_t data[3];
-
-    read_bytes(
-    MAX30102_ADDR,
-    REG_FIFO_DATA,
-    data,
-    3);
-
-    return (data[0]<<16)|
-           (data[1]<<8)|
-            data[2];
+    read_bytes(MAX30102_ADDR, REG_FIFO_DATA, data, 3);
+    return (data[0] << 16) | (data[1] << 8) | data[2];
 }
 
 ////////////////////////////////////////////////////////////
-// BPM ESTIMATION
+// TMP117 INIT
 ////////////////////////////////////////////////////////////
 
-int compute_bpm(uint32_t *samples,int count)
+void tmp117_init()
 {
-    int peaks=0;
+    uint8_t config_data[3];
+    uint16_t config_value = 0x00A0;
 
-    for(int i=2;i<count-2;i++)
+    config_data[0] = TMP117_CONFIG_REG;
+    config_data[1] = config_value >> 8;
+    config_data[2] = config_value & 0xFF;
+
+    i2c_master_write_to_device(I2C_PORT,
+                               TMP117_ADDR,
+                               config_data,
+                               3,
+                               100);
+
+    printf("[TEMP] TMP117 initialized\n");
+}
+
+////////////////////////////////////////////////////////////
+// READ TEMPERATURE
+////////////////////////////////////////////////////////////
+
+float read_temperature()
+{
+    uint8_t reg = TMP117_TEMP_REG;
+    uint8_t data[2];
+
+    i2c_master_write_read_device(I2C_PORT,
+                                TMP117_ADDR,
+                                &reg,
+                                1,
+                                data,
+                                2,
+                                100);
+
+    int16_t raw_temp = (data[0] << 8) | data[1];
+
+    return raw_temp * 0.0078125;
+}
+
+////////////////////////////////////////////////////////////
+// BPM COMPUTATION
+////////////////////////////////////////////////////////////
+
+int compute_bpm(uint32_t *samples, int count)
+{
+    int peaks = 0;
+
+    for(int i = 2; i < count - 2; i++)
     {
-        if(samples[i]>samples[i-1] &&
-           samples[i]>samples[i+1] &&
-           samples[i]>samples[i-2] &&
-           samples[i]>samples[i+2] &&
-           samples[i]>70000)
-        peaks++;
+        if(samples[i] > samples[i-1] &&
+           samples[i] > samples[i+1] &&
+           samples[i] > samples[i-2] &&
+           samples[i] > samples[i+2] &&
+           samples[i] > IR_THRESHOLD)
+        {
+            peaks++;
+        }
     }
 
-    return peaks*2;
+    int bpm = peaks * 2;
+
+    if(bpm >= BPM_MIN_VALID && bpm <= BPM_MAX_VALID)
+        return bpm;
+
+    return -1;
 }
 
 ////////////////////////////////////////////////////////////
@@ -256,112 +279,32 @@ void imu_task(void *arg)
 
     while(1)
     {
-        read_bytes(
-        LSM6DSO_ADDR,
-        OUTX_L_A,
-        data,
-        6);
+        read_bytes(LSM6DSO_ADDR,
+                   OUTX_L_A,
+                   data,
+                   6);
 
-        int16_t ax=data[1]<<8|data[0];
-        int16_t ay=data[3]<<8|data[2];
-        int16_t az=data[5]<<8|data[4];
+        int16_t ax =
+            (data[1] << 8) | data[0];
 
-        float magnitude=
-        sqrt(
-        pow(ax*0.000122,2)+
-        pow(ay*0.000122,2)+
-        pow(az*0.000122,2));
+        int16_t ay =
+            (data[3] << 8) | data[2];
 
-        if(magnitude>3)
+        int16_t az =
+            (data[5] << 8) | data[4];
+
+        float magnitude =
+            sqrt(pow(ax*0.000122,2)+
+                 pow(ay*0.000122,2)+
+                 pow(az*0.000122,2));
+
+        if(magnitude > 3)
         {
-            shock_flag=1;
-
-            printf("⚠️ IMPACT DETECTED\n");
+            shock_flag = 1;
+            printf("IMPACT\n");
         }
 
         vTaskDelay(pdMS_TO_TICKS(10));
-    }
-}
-
-////////////////////////////////////////////////////////////
-// BAROMETER TASK
-////////////////////////////////////////////////////////////
-
-void baro_task(void *arg)
-{
-    ms5611_init();
-
-    float baseline=0;
-
-    for(int i=0;i<10;i++)
-    {
-        uint32_t D1,D2;
-
-        uint8_t cmd=D1_CONV;
-        i2c_master_write_to_device(I2C_PORT,MS5611_ADDR,&cmd,1,100);
-
-        vTaskDelay(pdMS_TO_TICKS(10));
-
-        D1=read_adc();
-
-        cmd=D2_CONV;
-        i2c_master_write_to_device(I2C_PORT,MS5611_ADDR,&cmd,1,100);
-
-        vTaskDelay(pdMS_TO_TICKS(10));
-
-        D2=read_adc();
-
-        int32_t dT=D2-((uint32_t)C[5]<<8);
-
-        int64_t OFF=((int64_t)C[2]<<16)+(((int64_t)dT*C[4])>>7);
-        int64_t SENS=((int64_t)C[1]<<15)+(((int64_t)dT*C[3])>>8);
-
-        int32_t P=(((D1*SENS)>>21)-OFF)>>15;
-
-        float altitude=
-        44330*(1-pow(P/101325.0,0.1903));
-
-        baseline+=altitude;
-    }
-
-    baseline/=10;
-
-    while(1)
-    {
-        uint32_t D1,D2;
-
-        uint8_t cmd=D1_CONV;
-        i2c_master_write_to_device(I2C_PORT,MS5611_ADDR,&cmd,1,100);
-
-        vTaskDelay(pdMS_TO_TICKS(10));
-
-        D1=read_adc();
-
-        cmd=D2_CONV;
-        i2c_master_write_to_device(I2C_PORT,MS5611_ADDR,&cmd,1,100);
-
-        vTaskDelay(pdMS_TO_TICKS(10));
-
-        D2=read_adc();
-
-        int32_t dT=D2-((uint32_t)C[5]<<8);
-
-        int64_t OFF=((int64_t)C[2]<<16)+(((int64_t)dT*C[4])>>7);
-        int64_t SENS=((int64_t)C[1]<<15)+(((int64_t)dT*C[3])>>8);
-
-        int32_t P=(((D1*SENS)>>21)-OFF)>>15;
-
-        float altitude=
-        44330*(1-pow(P/101325.0,0.1903));
-
-        if(fabs(altitude-baseline)>1.5)
-        {
-            altitude_flag=1;
-
-            printf("⚠️ ALTITUDE CHANGE DETECTED\n");
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
@@ -373,13 +316,10 @@ void stillness_task(void *arg)
 {
     while(1)
     {
-        if(shock_flag && altitude_flag)
+        if(shock_flag)
         {
-            printf("⏳ Checking movement stability...\n");
-
             vTaskDelay(pdMS_TO_TICKS(5000));
-
-            stillness_flag=1;
+            stillness_flag = 1;
         }
 
         vTaskDelay(pdMS_TO_TICKS(200));
@@ -394,21 +334,16 @@ void supervisor_task(void *arg)
 {
     while(1)
     {
-        if(shock_flag &&
-           altitude_flag &&
-           stillness_flag)
+        if(shock_flag && stillness_flag)
         {
-            printf("\n🚨🚨 FALL CONFIRMED 🚨🚨\n");
-
             fall_confirmed_flag = 1;
 
-            espnow_send_fall_packet(true,
-                        0.95,
-                        0,
-                        0);
+            float temp =
+                read_temperature();
+
+            send_uart_packet(1,0,temp);
 
             shock_flag=0;
-            altitude_flag=0;
             stillness_flag=0;
         }
 
@@ -423,26 +358,31 @@ void supervisor_task(void *arg)
 void pulse_task(void *arg)
 {
     max30102_init();
+    tmp117_init();
 
     uint32_t samples[300];
 
     while(1)
     {
-        if(fall_confirmed_flag)
-            printf("\n[PULSE] Emergency capture\n");
-        else
-            printf("\n[PULSE] Scheduled capture\n");
-
         for(int i=0;i<300;i++)
         {
-            samples[i]=read_ir_sample();
+            samples[i]=
+                read_ir_sample();
 
             vTaskDelay(pdMS_TO_TICKS(100));
         }
 
-        int bpm=compute_bpm(samples,300);
+        int bpm=
+            compute_bpm(samples,300);
 
-        printf("[PULSE] BPM = %d\n",bpm);
+        float temp=
+            read_temperature();
+
+        send_uart_packet(
+            fall_confirmed_flag,
+            bpm,
+            temp
+        );
 
         fall_confirmed_flag=0;
 
@@ -456,13 +396,45 @@ void pulse_task(void *arg)
 
 void app_main()
 {
-    printf("\nHelmet Monitoring Engine Started\n");
-    espnow_init();
+    printf("HELMET ENGINE STARTED\n");
+
     i2c_init();
 
-    xTaskCreate(imu_task,"imu",4096,NULL,4,NULL);
-    xTaskCreate(baro_task,"baro",4096,NULL,3,NULL);
-    xTaskCreate(stillness_task,"still",4096,NULL,2,NULL);
-    xTaskCreate(supervisor_task,"logic",4096,NULL,2,NULL);
-    xTaskCreate(pulse_task,"pulse",4096,NULL,1,NULL);
+    uart_init();
+
+    xTaskCreate(
+        imu_task,
+        "IMU",
+        4096,
+        NULL,
+        4,
+        NULL
+    );
+
+    xTaskCreate(
+        stillness_task,
+        "STILLNESS",
+        4096,
+        NULL,
+        2,
+        NULL
+    );
+
+    xTaskCreate(
+        supervisor_task,
+        "SUPERVISOR",
+        4096,
+        NULL,
+        2,
+        NULL
+    );
+
+    xTaskCreate(
+        pulse_task,
+        "PULSE",
+        8192,
+        NULL,
+        1,
+        NULL
+    );
 }
