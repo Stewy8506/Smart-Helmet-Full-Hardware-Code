@@ -5,6 +5,7 @@
 #include "freertos/task.h"
 #include "i2s_out.h"
 #include <string.h>
+#include "mic_input.h"
 
 static const char *TAG = "MAIN";
 
@@ -12,26 +13,32 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "ESP32-S3 UART Audio Debug");
 
-    audio_buffer_init();
-    uart_audio_init();
+    mic_init();
     i2s_out_init();
 
-    int16_t samples[512];
+    int32_t mic_samples[256];
+    int16_t samples[256];
 
     #define FRAME_SAMPLES 256
 
     while (1)
     {
-        int count = audio_buffer_read(samples, FRAME_SAMPLES);
+        int count = mic_read(mic_samples, FRAME_SAMPLES);
 
-        // Ensure fixed frame size
+        // Convert 24-bit mic data to 16-bit audio
+        for (int i = 0; i < count; i++)
+        {
+            samples[i] = mic_samples[i] >> 8; // 24-bit → 16-bit
+        }
+
+        // Pad if needed
         if (count < FRAME_SAMPLES)
         {
             memset(samples + count, 0, (FRAME_SAMPLES - count) * sizeof(int16_t));
             count = FRAME_SAMPLES;
         }
 
-        // Debug (reduced overhead)
+        // Debug
         static int counter = 0;
         if (++counter % 50 == 0)
         {
@@ -44,10 +51,10 @@ void app_main(void)
                 if (samples[i] > max) max = samples[i];
             }
 
-            printf("RX Min: %d Max: %d\n", min, max);
+            printf("MIC Min: %d Max: %d\n", min, max);
         }
 
-        // Always send fixed-size audio
-        i2s_out_write(samples, FRAME_SAMPLES);
+        static int16_t anc_buffer[FRAME_SAMPLES] = {0}; // placeholder ANC buffer
+        i2s_out_write(samples, anc_buffer, FRAME_SAMPLES);
     }
 }

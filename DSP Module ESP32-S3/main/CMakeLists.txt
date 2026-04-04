@@ -3,5 +3,7 @@ idf_component_register(SRCS
     "uart_audio.c"
     "audio_buffer.c"
     "i2s._out.c"
+    "mic_input.c"
+    "dsp.c"
     INCLUDE_DIRS "."
 )

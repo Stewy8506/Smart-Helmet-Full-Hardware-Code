@@ -2,8 +2,10 @@
 #include "driver/i2s_std.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_log.h"
 
 static i2s_chan_handle_t tx_handle;
+static const char *TAG = "I2S_OUT";
 
 void i2s_out_init(void)
 {
@@ -24,14 +26,17 @@ void i2s_out_init(void)
     i2s_channel_enable(tx_handle);
 }
 
-void i2s_out_write(int16_t *samples, int count)
+void i2s_out_write(int16_t *music, int16_t *anc, int count)
 {
     static int16_t stereo[1024]; // enough for duplicated samples
     int stereo_count = 0;
 
+    int16_t min = 32767;
+    int16_t max = -32768;
+
     for (int i = 0; i < count; i++)
     {
-        int32_t s = samples[i];
+        int32_t s = music[i] + anc[i]; // mix bluetooth + ANC
 
         // soft clip (non-linear)
         if (s > 20000)
@@ -45,9 +50,14 @@ void i2s_out_write(int16_t *samples, int count)
 
         int16_t out = (int16_t)s; // reduce volume (prevent clipping)
 
+        if (out < min) min = out;
+        if (out > max) max = out;
+
         stereo[stereo_count++] = out;
         stereo[stereo_count++] = out;
     }
+
+    ESP_LOGI(TAG, "OUT Min: %d Max: %d", min, max);
 
     size_t bytes_written;
     i2s_channel_write(tx_handle, stereo, stereo_count * sizeof(int16_t), &bytes_written, portMAX_DELAY);
