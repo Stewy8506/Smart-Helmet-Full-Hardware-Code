@@ -5,7 +5,7 @@
 #define UART_STREAM_PORT UART_NUM_2
 #define UART_STREAM_TX_PIN 17
 #define UART_STREAM_RX_PIN 16
-#define UART_STREAM_BAUD 1500000   // you can try 2000000 or 3000000 later
+#define UART_STREAM_BAUD 2000000   // you can try 3000000 later
 
 // Packet format
 #define UART_SYNC_WORD 0xAA55
